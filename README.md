@@ -40,7 +40,7 @@
 
 ### 手动构建
 
-**windows**
+**Windows**
 
 ```shell
 # 安装 rust
@@ -51,17 +51,41 @@ scoop install pnpm
 # 下载项目依赖
 pnpm install
 # 编译项目
-pnpm run build:ci
+pnpm build:ci
 ```
+
+生成的文件位于: `./app/src-tauri/target/release/bundle/` 下
+
+**MacOS**
+
+```shell
+# 安装 rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# 安装 pnpm 包管理器
+brew install pnpm
+
+# 下载项目依赖
+pnpm install
+# 编译项目
+pnpm build:ci
+```
+
+生成的文件位于: `./app/src-tauri/target/release/bundle/dmg/` 下
 
 > 由于精力有限，其他平台的构建策略待完善
 
 ### 使用脚本构建
 
-**windows**
+**Windows**
 
 ```pwsh
 pwsh .\tools\build.ps1
+```
+
+**MacOS**
+
+```pwsh
+sh ./tools/build.sh
 ```
 
 > 由于精力有限，其他平台构建脚本待完善
