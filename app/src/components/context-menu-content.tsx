@@ -79,6 +79,7 @@ import {
   RefreshCcwDot,
   CornerUpRight,
   Workflow,
+  Equal,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -721,6 +722,41 @@ export default function MyContextMenuContent() {
             <Spline />
             转换为无向边
           </Item>
+          <Sub>
+            <SubTrigger>
+              <ArrowRightFromLine />
+              线条类型
+            </SubTrigger>
+            <SubContent>
+              <Item
+                onClick={() => {
+                  p.stageManager.setSelectedEdgeLineType("solid");
+                  p.historyManager.recordStep();
+                }}
+              >
+                <SquareSquare />
+                实线
+              </Item>
+              <Item
+                onClick={() => {
+                  p.stageManager.setSelectedEdgeLineType("dashed");
+                  p.historyManager.recordStep();
+                }}
+              >
+                <SquareDashedBottomCode />
+                虚线
+              </Item>
+              <Item
+                onClick={() => {
+                  p.stageManager.setSelectedEdgeLineType("double");
+                  p.historyManager.recordStep();
+                }}
+              >
+                <Equal />
+                双实线
+              </Item>
+            </SubContent>
+          </Sub>
           <Item className="bg-transparent! gap-0 p-0">
             <div className="grid grid-cols-3 grid-rows-3">
               <div></div>

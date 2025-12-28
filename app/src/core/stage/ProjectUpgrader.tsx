@@ -1,4 +1,5 @@
 import { Serialized } from "@/types/node";
+import { ProjectMetadata } from "@/types/metadata";
 import { Path } from "@/utils/path";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { v4 as uuidv4 } from "uuid";
@@ -9,7 +10,37 @@ import { toast } from "sonner";
 import { DetailsManager } from "./stageObject/tools/entityDetailsManager";
 
 export namespace ProjectUpgrader {
-  export function upgrade(data: Record<string, any>): Record<string, any> {
+  /** N系列的最新版本 */
+  export const NLatestVersion = "2.1.0";
+
+  /**
+   * 比较两个版本号字符串（格式：x.y.z）
+   * @param version1 版本1
+   * @param version2 版本2
+   * @returns 如果 version1 < version2 返回 -1，如果 version1 > version2 返回 1，如果相等返回 0
+   */
+  function compareVersion(version1: string, version2: string): number {
+    const v1Parts = version1.split(".").map(Number);
+    const v2Parts = version2.split(".").map(Number);
+    const maxLength = Math.max(v1Parts.length, v2Parts.length);
+
+    for (let i = 0; i < maxLength; i++) {
+      const v1Part = v1Parts[i] || 0;
+      const v2Part = v2Parts[i] || 0;
+      if (v1Part < v2Part) return -1;
+      if (v1Part > v2Part) return 1;
+    }
+    return 0;
+  }
+
+  /**
+   * 1.0~1.8 系列版本的json文件升级，
+   * 注意：在2.0后改为了 内部含有msgpack的 .prg文件格式因此，
+   * 此函数仅作为旧版本文件的迁移函数
+   * @param data 原始json数据
+   * @returns 升级后的json数据
+   */
+  export function upgradeVAnyToVLatest(data: Record<string, any>): Record<string, any> {
     data = convertV1toV2(data);
     data = convertV2toV3(data);
     data = convertV3toV4(data);
@@ -324,9 +355,45 @@ export namespace ProjectUpgrader {
     return data;
   }
 
+  /**
+   * N版本的prg文件升级，从任意N版本升级到最新N版本
+   * @param data 原始N版本数据
+   * @param metadata 原始metadata
+   * @returns 升级后的N版本数据和metadata
+   */
+  export function upgradeNAnyToNLatest(data: any[], metadata: any): [any[], ProjectMetadata] {
+    const currentVersion = metadata?.version || "2.0.0";
+
+    // 如果版本小于 2.1.0，需要升级
+    if (compareVersion(currentVersion, "2.1.0") < 0) {
+      [data, metadata] = convertN1toN2(data, metadata);
+    }
+
+    return [data, metadata];
+  }
+
+  /**
+   * 将 2.0.0 版本升级到 2.1.0 版本
+   * @param data 2.0.0版本数据
+   * @param metadata 2.0.0版本metadata
+   * @returns 2.1.0版本数据和metadata
+   */
+  function convertN1toN2(data: any[], metadata: any): [any[], ProjectMetadata] {
+    // 为LineEdge添加lineType属性，默认值为'solid'
+    for (const item of data) {
+      if (item._ === "LineEdge") {
+        // 如果lineType属性不存在，添加默认值
+        if (!item.lineType) {
+          item.lineType = "solid";
+        }
+      }
+    }
+    return [data, { ...metadata, version: "2.1.0" }];
+  }
+
   export async function convertVAnyToN1(json: Record<string, any>, uri: URI) {
     // 升级json数据到最新版本
-    json = ProjectUpgrader.upgrade(json);
+    json = ProjectUpgrader.upgradeVAnyToVLatest(json);
     let isHaveImageNode = false;
     const uuidMap = new Map<string, Record<string, any>>();
     const resultStage: Record<string, any>[] = [];
@@ -592,6 +659,7 @@ export namespace ProjectUpgrader {
             color: toColor(association.color),
             sourceRectangleRate: toVector(association.sourceRectRate),
             targetRectangleRate: toVector(association.targetRectRate),
+            // lineType: "solid",
           });
           break;
         }

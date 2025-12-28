@@ -483,6 +483,12 @@ settings:
       由于视野缩放大小原因，此时边缘可能会有留白
       值为1 表示边缘完全不留白。（非常放大的观察）
       值为2 表示留白内容恰好为自身内容的一倍
+  cameraResetMaxScale:
+    title: 摄像机重置视野后最大的缩放值
+    description: |
+      选中一个面积很小的节点时，摄像机不会完全覆盖这个节点的面积范围，否则太大了。
+      而是会放大到一个最大值，这个最大值可以通过此选项来调整
+      建议开启debug模式下观察 currentScale 来调整此值
   allowAddCycleEdge:
     title: 允许在节点之间添加自环
     description: |
@@ -1070,6 +1076,10 @@ keyBinds:
     description: |
       如果没有选择任何内容，则根据全部内容重置视野；
       如果有选择内容，则根据选中内容重置视野
+  restoreCameraState:
+    title: 恢复视野状态
+    description: |
+      按下后，恢复到之前按下F键时记录的摄像机位置和缩放大小
   resetCameraScale:
     title: 重置缩放
     description: 将视野缩放重置为标准大小

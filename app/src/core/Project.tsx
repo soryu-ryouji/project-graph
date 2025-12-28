@@ -84,6 +84,8 @@ import { URI } from "vscode-uri";
 import { Telemetry } from "./service/Telemetry";
 import { AutoSaveBackupService } from "./service/dataFileService/AutoSaveBackupService";
 import { ReferenceManager } from "./stage/stageManager/concreteMethods/StageReferenceManager";
+import { ProjectUpgrader } from "./stage/ProjectUpgrader";
+import { ProjectMetadata, createDefaultMetadata, isValidMetadata } from "@/types/metadata";
 
 if (import.meta.hot) {
   import.meta.hot.accept();
@@ -213,6 +215,8 @@ export class Project extends EventEmitter<{
       let serializedStageObjects: any[] = [];
       let tags: string[] = [];
       let references: { sections: Record<string, string[]>; files: string[] } = { sections: {}, files: [] };
+      let metadata: ProjectMetadata = createDefaultMetadata("2.0.0");
+
       for (const entry of entries) {
         if (entry.filename === "stage.msgpack") {
           const stageRawData = await entry.getData!(new Uint8ArrayWriter());
@@ -223,6 +227,16 @@ export class Project extends EventEmitter<{
         } else if (entry.filename === "reference.msgpack") {
           const referenceRawData = await entry.getData!(new Uint8ArrayWriter());
           references = this.decoder.decode(referenceRawData) as { sections: Record<string, string[]>; files: string[] };
+        } else if (entry.filename === "metadata.msgpack") {
+          const metadataRawData = await entry.getData!(new Uint8ArrayWriter());
+          const decodedMetadata = this.decoder.decode(metadataRawData) as any;
+          // 验证并规范化 metadata
+          if (isValidMetadata(decodedMetadata)) {
+            metadata = decodedMetadata;
+          } else {
+            // 如果格式不正确，使用默认值
+            metadata = createDefaultMetadata("2.0.0");
+          }
         } else if (entry.filename.startsWith("attachments/")) {
           const match = entry.filename.trim().match(/^attachments\/([a-zA-Z0-9-]+)\.([a-zA-Z0-9]+)$/);
           if (!match) {
@@ -236,9 +250,14 @@ export class Project extends EventEmitter<{
           this.attachments.set(uuid, attachment);
         }
       }
+
+      // 升级数据
+      [serializedStageObjects, metadata] = ProjectUpgrader.upgradeNAnyToNLatest(serializedStageObjects, metadata);
+
       this.stage = deserialize(serializedStageObjects, this);
       this.tags = tags;
       this.references = references;
+      this.metadata = metadata;
     } catch (e) {
       console.warn(e);
     }
@@ -351,6 +370,7 @@ export class Project extends EventEmitter<{
 
   // 反向引用数据
   public references: { sections: Record<string, string[]>; files: string[] } = { sections: {}, files: [] };
+  public metadata: ProjectMetadata = createDefaultMetadata(ProjectUpgrader.NLatestVersion);
 
   // 更新引用信息的方法已经在changeTextNodeToReferenceBlock中直接实现，这里暂时不需要单独的方法
 
@@ -364,6 +384,7 @@ export class Project extends EventEmitter<{
     writer.add("stage.msgpack", new Uint8ArrayReader(encodedStage));
     writer.add("tags.msgpack", new Uint8ArrayReader(this.encoder.encode(this.tags)));
     writer.add("reference.msgpack", new Uint8ArrayReader(this.encoder.encode(this.references)));
+    writer.add("metadata.msgpack", new Uint8ArrayReader(this.encoder.encode(this.metadata)));
     // 添加附件
     for (const [uuid, attachment] of this.attachments.entries()) {
       writer.add(`attachments/${uuid}.${mime.getExtension(attachment.type)}`, new BlobReader(attachment));
